@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DATA-PAC | Revisión y Aprobación V3</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="login-overlay" class="login-overlay">
+    <div class="login-card">
+      <h2>Ingreso a DATA-PAC</h2>
+      <p class="muted">Revisión y Aprobación V3</p>
+      <div id="login-step-1" class="login-step active">
+        <label>Cédula</label>
+        <input type="text" id="login-cedula" placeholder="Ej: 10203040" />
+        <label>Correo electrónico institucional</label>
+        <input type="email" id="login-correo" placeholder="usuario@car.gov.co" />
+        <button class="btn btn--primary" id="btn-solicitar-codigo">Solicitar Código</button>
+        <div id="login-msg-1" class="msg-error"></div>
+      </div>
+      <div id="login-step-2" class="login-step">
+        <p class="muted" style="margin-bottom: 10px;">Hemos enviado un código de 6 dígitos a tu correo.</p>
+        <label>Código de verificación (OTP)</label>
+        <input type="text" id="login-codigo" placeholder="Ej: 123456" maxlength="6" style="text-align: center; font-size: 24px; letter-spacing: 4px;" />
+        <button class="btn btn--primary" id="btn-validar-codigo">Verificar y Entrar</button>
+        <div id="login-msg-2" class="msg-error"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand__dot"></div>
+        <div class="brand__text">
+          <div class="brand__title">DATA-PAC</div>
+          <div class="brand__subtitle">Revisión y Aprobación V3</div>
+        </div>
+      </div>
+      <div class="topbar__right">
+        <div class="pill pill--mode" id="pill-modo" style="background: #e2e8f0; border-color: #cbd5e1; font-weight: bold;">Modo: Revisión</div>
+        <div class="pill" id="pill-roles" style="display:none;">Roles: —</div>
+        <div class="pill" id="pill-user" style="display:none;">Usuario: —</div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel panel--inbox" aria-label="Bandeja">
+        <div class="panel__header">
+          <h2>Bandeja de Tareas</h2>
+          <p class="muted">Filtra y selecciona un registro para revisar.</p>
+        </div>
+        
+        <div class="filters">
+          <div class="grid2">
+            <div class="field" style="padding:0;">
+              <label>Vigencia</label>
+              <input type="number" id="flt-vigencia" value="2025" />
+            </div>
+            <div class="field" style="padding:0;">
+              <label>Periodo</label>
+              <select id="flt-periodo">
+                <option value="">Todos</option>
+                <option value="T1">T1</option>
+                <option value="T2">T2</option>
+                <option value="T3">T3</option>
+                <option value="T4">T4</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" style="padding:10px 0 0 0;">
+            <label>Dependencia</label>
+            <select id="flt-dependencia">
+              <option value="">Todas las dependencias permitidas</option>
+            </select>
+          </div>
+          <div class="grid2" style="padding:10px 0 0 0;">
+            <div class="field" style="padding:0;">
+              <label>Estado</label>
+              <select id="flt-estado">
+                <option value="">Pendientes de mi rol</option>
+                <option value="Enviado">Enviado</option>
+                <option value="EnRevision">En Revisión</option>
+                <option value="Devuelto">Devuelto</option>
+                <option value="Aprobado">Aprobado</option>
+                <option value="Publicado">Publicado</option>
+              </select>
+            </div>
+            <div class="field" style="padding:0;">
+              <label>Búsqueda libre</label>
+              <input type="text" id="flt-texto" placeholder="Buscar por ID..." />
+            </div>
+          </div>
+          
+          <div class="actions" style="padding:10px 0 0 0; justify-content:space-between;">
+            <button class="btn btn--ghost" id="btn-limpiar-filtros">Limpiar</button>
+            <button class="btn btn--primary" id="btn-recargar-bandeja">Filtrar</button>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        
+        <div id="inbox-list" class="inbox-list">
+          <div class="muted" style="text-align:center; padding: 20px;">Cargando bandeja...</div>
+        </div>
+      </section>
+
+      <section class="panel panel--detail" aria-label="Detalle">
+        <div id="detail-empty" class="detail-empty">
+          <div style="font-size: 40px; margin-bottom: 10px;">📄</div>
+          <h3>Ningún registro seleccionado</h3>
+          <p class="muted">Selecciona un elemento de la bandeja para ver su detalle y tomar acciones.</p>
+        </div>
+
+        <div id="detail-content" class="detail-content" style="display:none;">
+          <div class="panel__header detail-header">
+            <div>
+              <h2 id="det-title">Detalle de Registro</h2>
+              <p class="muted" id="det-subtitle">Cargando...</p>
+            </div>
+            <div id="det-badge-container"></div>
+          </div>
+
+          <div class="detail-body">
+            <div class="card detail-section hierarchy-box">
+              <h3 class="card__title">Jerarquía del Plan (CFG)</h3>
+              <div class="hierarchy-tree" id="ctx-hierarchy">
+                <span class="muted">Cargando contexto jerárquico...</span>
+              </div>
+            </div>
+
+            <div class="card detail-section">
+              <h3 class="card__title">Información General</h3>
+              <div class="grid2" style="margin-top:10px; padding:0;">
+                <div class="kv"><span class="kv-l">Tipo Objeto</span><span class="kv-v" id="ctx-tipo">—</span></div>
+                <div class="kv"><span class="kv-l">Vigencia / Periodo</span><span class="kv-v" id="ctx-vigper">—</span></div>
+                <div class="kv"><span class="kv-l">Responsable Operativo</span><span class="kv-v" id="ctx-resp">—</span></div>
+                <div class="kv"><span class="kv-l">Dependencia</span><span class="kv-v" id="ctx-dep">—</span></div>
+                <div class="kv"><span class="kv-l">Fecha Solicitud</span><span class="kv-v" id="ctx-fecha">—</span></div>
+                <div class="kv"><span class="kv-l">Versión Actual</span><span class="kv-v" id="ctx-ver">—</span></div>
+                <div class="kv" style="grid-column: 1 / span 2;"><span class="kv-l">Solicitud Lógica ID</span><span class="kv-v mono" id="ctx-solid">—</span></div>
+                <div class="kv" style="grid-column: 1 / span 2;"><span class="kv-l">Global ID Físico</span><span class="kv-v mono" id="ctx-gid">—</span></div>
+              </div>
+            </div>
+
+            <div id="section-tarea" class="card detail-section" style="display:none;">
+              <h3 class="card__title">Información Reportada (Avance Operativo)</h3>
+              <div class="grid2" style="margin-top:10px; padding:0;">
+                <div class="kv"><span class="kv-l">Valor Reportado</span><span class="kv-v highlight" id="tar-valor">—</span></div>
+                <div class="kv"><span class="kv-l">Evidencia URL</span><span class="kv-v"><a href="#" id="tar-evi" target="_blank" style="color:var(--primary);">Ver Evidencia</a></span></div>
+              </div>
+              <div class="kv" style="margin-top:10px;"><span class="kv-l">Observaciones Operativas</span><div class="kv-box" id="tar-obs">—</div></div>
+              <div class="kv" style="margin-top:10px;"><span class="kv-l">Motivo de Ajuste (Dado al operador)</span><div class="kv-box error-box" id="tar-motivo">—</div></div>
+            </div>
+
+            <div id="section-narrativa" class="card detail-section" style="display:none;">
+              <h3 class="card__title">Reporte Narrativo</h3>
+              <div class="kv" style="margin-top:10px;"><span class="kv-l">Texto Narrativo General</span><div class="kv-box" id="nar-txt1">—</div></div>
+              <div class="kv" style="margin-top:10px;"><span class="kv-l">Descripción Logros Alcanzados</span><div class="kv-box" id="nar-txt2">—</div></div>
+              <div class="kv" style="margin-top:10px;"><span class="kv-l">Principales Logros</span><div class="kv-box" id="nar-txt3">—</div></div>
+              <div class="kv" style="margin-top:10px;"><span class="kv-l">Motivo de Ajuste (Dado al operador)</span><div class="kv-box error-box" id="nar-motivo">—</div></div>
+            </div>
+
+            <div id="section-ubicaciones" class="card detail-section" style="display:none;">
+              <h3 class="card__title">Ubicaciones Georreferenciadas Reportadas</h3>
+              <div id="list-ubicaciones" class="loc-list" style="margin-top:10px;"></div>
+            </div>
+
+            <div class="card detail-section review-box">
+              <h3 class="card__title">Acción de Flujo de Aprobación</h3>
+              <div class="field" style="padding:10px 0 0 0;">
+                <label>Observación de Revisión <span class="muted">(Obligatoria si se Devuelve)</span></label>
+                <textarea id="txt-observacion-revision" rows="3" placeholder="Ingresa los comentarios de aprobación o las razones de la devolución..."></textarea>
+              </div>
+              <div class="actions review-actions" style="padding:10px 0 0 0;">
+                <button class="btn btn--danger" id="btn-devolver">Devolver a Operador</button>
+                <button class="btn btn--primary" id="btn-aprobar">Aprobar (Visto Bueno)</button>
+                <button class="btn btn--success" id="btn-publicar">Aprobar y Publicar</button>
+              </div>
+              <div id="review-status" class="status" style="padding:10px 0 0 0;"></div>
+            </div>
+
+            <div class="card detail-section">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 class="card__title">Bitácora y Trazabilidad</h3>
+                <button class="btn btn--ghost" id="btn-refrescar-traz" style="padding:4px 8px; font-size:10px;">Refrescar Historial</button>
+              </div>
+              <div id="list-trazabilidad" class="traz-list" style="margin-top:10px;"></div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+  <script>document.getElementById("flt-vigencia").value = new Date().getFullYear();</script>
+</body>
+</html>
