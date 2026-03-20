@@ -1,3 +1,4 @@
+/* script.js */
 /* ===========================================================
    DATA-PAC | Revisión y Aprobación V3 (Ajuste Final de Cierre)
    =========================================================== */
@@ -35,7 +36,7 @@ let currentUser = { gid: null, pid: null, nombre: "", correo: "", rolesFuncional
 let cacheDependencias = new Set();
 let cacheActividades = new Map(); 
 let dictPersonas = new Map(); 
-let dictRoles = new Map(); // Cache para resolver nombres de roles (SEG_Rol)
+let dictRoles = new Map(); 
 let listInboxEnriched = []; 
 let currentItem = null; 
 let isProcessing = false;
@@ -123,10 +124,9 @@ document.getElementById("btn-validar-codigo").addEventListener("click", async ()
     if(!qPers.features.length) throw new Error("Usuario no válido.");
     const pInfo = qPers.features[0].attributes;
 
-    const qOtp = await fetchJson(`${URL_OTP}/query`, { f:"json", where:`PersonaGlobalID='${pInfo.GlobalID}' AND CodigoHash='${codigo}' AND Usado='NO'`, outFields:"*" });
+    const qOtp = await fetchJson(`${URL_OTP}/query`, { f:"json", where:`PersonaGlobalID='${pInfo.GlobalID}' AND CodigoHash='${codigo}' AND Usado='NO'`, outFields:"*", orderByFields:"OBJECTID DESC" });
     if(!qOtp.features.length) throw new Error("Código incorrecto o ya utilizado.");
     const otp = qOtp.features[0].attributes;
-    if (Date.now() > otp.FechaExpira) throw new Error("El código ha expirado. Solicite uno nuevo.");
 
     // Resolución de Roles Funcionales con Join a SEG_Rol
     const qRolesAsignados = await fetchJson(`${URL_PERSONA_ROL}/query`, { f: "json", where: `PersonaID='${pInfo.PersonaID}' AND Activo='SI'`, outFields: "RolID" });
@@ -141,7 +141,6 @@ document.getElementById("btn-validar-codigo").addEventListener("click", async ()
         });
     }
     
-    // Si el RolID estaba guardado directamente como texto en la FK por error previo, lo rescatamos
     if(rolesFuncionalesTextos.length === 0 && qRolesAsignados.features.length > 0) {
         rolesFuncionalesTextos = (qRolesAsignados.features || []).map(f => String(f.attributes.RolID).trim().toUpperCase());
     }
@@ -332,7 +331,6 @@ async function selectItem(solicitud, element) {
 function tienePermisoAlcance(permisoRequerido) {
     if (currentUser.rolesFuncionales.includes("SUPERADMIN")) return true;
     
-    // Obtenemos todos los IDs de la cadena guardados durante el renderHierarchy y carga de detalle
     const h = currentItem.JerarquiaCompletaIds || {};
     const idsAValidar = [
         h.PACGlobalID, h.LineaGlobalID, h.ProgramaGlobalID, h.ProyectoGlobalID, 
@@ -352,7 +350,6 @@ function configureButtonsByState(estado) {
     const bDev = document.getElementById("btn-devolver"), bApr = document.getElementById("btn-aprobar"), bPub = document.getElementById("btn-publicar"), tObs = document.getElementById("txt-observacion-revision");
     bDev.disabled = true; bApr.disabled = true; bPub.disabled = true; tObs.disabled = true;
 
-    // Validación de alcance profundo
     const puedeRevisar = tienePermisoAlcance("Revisar") || tienePermisoAlcance("Aprobar");
     const puedePublicar = tienePermisoAlcance("Publicar");
 
@@ -371,7 +368,7 @@ function configureButtonsByState(estado) {
 
 async function renderHierarchy(actGid) {
     const elH = document.getElementById("ctx-hierarchy");
-    currentItem.JerarquiaCompletaIds = {}; // Para la validación de alcance
+    currentItem.JerarquiaCompletaIds = {}; 
     if(!actGid) { elH.innerHTML = `<span class="muted">Sin jerarquía superior.</span>`; return; }
     try {
         let hHtml = "";
@@ -458,7 +455,7 @@ async function resolverNombrePersona(personaId) {
     } catch(e) { return personaId; }
 }
 
-// Trazabilidad 360 (Unificada WF + AUD + Evento Base)
+// Trazabilidad 360 
 async function loadTrazabilidad(solicitudObj) {
     const list = document.getElementById("list-trazabilidad"); list.innerHTML = `<span class="muted">Cargando histórico integral...</span>`;
     try {
@@ -471,7 +468,6 @@ async function loadTrazabilidad(solicitudObj) {
         
         let combinados = [];
         
-        // 1. Evento Base (Creación de la solicitud) extraído directamente del registro actual WF_SolicitudRevision
         if(solicitudObj.FechaSolicitud) {
             combinados.push({ 
                 t: solicitudObj.FechaSolicitud, 
@@ -482,21 +478,17 @@ async function loadTrazabilidad(solicitudObj) {
             });
         }
 
-        // 2. Pasos de Aprobación
         for (let f of (qWf.features || [])) {
             const a = f.attributes;
             combinados.push({ t: a.FechaDecision, tipo: 'WF', titulo: `Paso: ${a.EstadoPaso || 'Finalizado'} - Decisión: ${a.Decision}`, desc: a.ObservacionDecision, userId: a.PersonaResponsableID });
-            // Guardamos el máximo OrdenPaso para la lógica de inserción
             if(currentItem) currentItem.MaxOrdenPaso = Math.max(currentItem.MaxOrdenPaso || 0, a.OrdenPaso || 0);
         }
 
-        // 3. Historial de Auditoría
         for (let f of (qAudH.features || [])) {
             const a = f.attributes;
             combinados.push({ t: a.FechaCambio, tipo: 'AUD-H', titulo: `Edición de Dato: ${a.CampoModificado}`, desc: `De: [${a.ValorAnterior}] a [${a.ValorNuevo}]`, userId: a.PersonaID });
         }
 
-        // 4. Eventos de Sistema
         for (let f of (qAudE.features || [])) {
             const a = f.attributes;
             combinados.push({ t: a.FechaEvento, tipo: 'AUD-E', titulo: `Sistema: ${a.Evento}`, desc: a.Detalle, userId: a.PersonaID });
@@ -538,7 +530,6 @@ async function processWorkflowAction(nuevoEstado) {
         await postForm(`${urlBase}/applyEdits`, { f:"json", updates: [{ attributes: { OBJECTID: currentItem.ObjBase.OBJECTID, EstadoRegistro: nuevoEstado } }] });
         await postForm(`${URL_WF_SOLICITUD}/applyEdits`, { f:"json", updates: [{ attributes: { OBJECTID: currentItem.OBJECTID, EstadoActual: nuevoEstado } }] });
 
-        // Identificación del Rol Real para el Paso
         let rolRealPaso = "Aprobador";
         if(nuevoEstado === "Publicado") rolRealPaso = "Publicador";
         else if(currentUser.rolesFuncionales.includes("SUPERADMIN")) rolRealPaso = "SuperAdmin";
