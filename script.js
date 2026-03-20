@@ -128,34 +128,26 @@ document.getElementById("btn-validar-codigo").addEventListener("click", async ()
     if(!qOtp.features.length) throw new Error("Código incorrecto o ya utilizado.");
     const otp = qOtp.features[0].attributes;
 
-    // Resolución de Roles Funcionales con Join a SEG_Rol
-    const qRolesAsignados = await fetchJson(`${URL_PERSONA_ROL}/query`, { f: "json", where: `PersonaID='${pInfo.PersonaID}' AND Activo='SI'`, outFields: "RolID" });
-    const idsRolesAsignados = (qRolesAsignados.features || []).map(f => `'${f.attributes.RolID}'`).join(",");
-    
-    let rolesFuncionalesTextos = [];
-    let rolesNombresVisuales = [];
-    
-    if(idsRolesAsignados) {
-        const qDefRoles = await fetchJson(`${URL_SEG_ROL}/query`, { f:"json", where:`RolID IN (${idsRolesAsignados})`, outFields:"RolID,NombreRol" });
-        (qDefRoles.features || []).forEach(f => {
-            dictRoles.set(f.attributes.RolID, f.attributes.NombreRol);
-            rolesFuncionalesTextos.push(String(f.attributes.RolID).trim().toUpperCase());
-            rolesNombresVisuales.push(String(f.attributes.NombreRol).trim());
-        });
-    }
-    
-    if(rolesFuncionalesTextos.length === 0 && qRolesAsignados.features.length > 0) {
-        (qRolesAsignados.features || []).forEach(f => {
-            const r = String(f.attributes.RolID).trim().toUpperCase();
-            rolesFuncionalesTextos.push(r);
-            rolesNombresVisuales.push(r);
-        });
-    }
+    // --- CORRECCIÓN DE VALIDACIÓN DE ROLES ---
+    const resR = await fetchJson(`${URL_PERSONA_ROL}/query`, { f: "json", where: `(PersonaID='${pInfo.GlobalID}' OR PersonaID='${pInfo.PersonaID}') AND Activo='SI'`, outFields: "RolID" });
+    const rolesFuncionalesTextos = (resR.features || []).map(f => String(f.attributes.RolID).trim().toUpperCase());
 
     const validRoles = rolesFuncionalesTextos.filter(r => ["APROBADOR", "PUBLICADOR", "SUPERADMIN"].includes(r));
     if (validRoles.length === 0) throw new Error("Acceso denegado: Su rol no permite realizar aprobaciones o revisión.");
 
-    // Cargar SEG_Alcance general
+    // Join opcional con SEG_Rol solo para visualización
+    let rolesNombresVisuales = [...validRoles];
+    const idsRolesAsignados = rolesFuncionalesTextos.map(r => `'${r}'`).join(",");
+    if(idsRolesAsignados) {
+        try {
+            const qDefRoles = await fetchJson(`${URL_SEG_ROL}/query`, { f:"json", where:`RolID IN (${idsRolesAsignados})`, outFields:"RolID,NombreRol" });
+            if(qDefRoles.features && qDefRoles.features.length > 0) {
+                rolesNombresVisuales = qDefRoles.features.map(f => String(f.attributes.NombreRol).trim());
+            }
+        } catch(e) {}
+    }
+    // --- FIN CORRECCIÓN DE ROLES ---
+
     const qAlc = await fetchJson(`${URL_ALCANCE}/query`, { f:"json", where:`PersonaID='${pInfo.PersonaID}' AND Activo='SI'`, outFields:"NivelJerarquia,ObjetoGlobalID,Permiso" });
     const alcanceList = (qAlc.features || []).map(f => f.attributes);
 
