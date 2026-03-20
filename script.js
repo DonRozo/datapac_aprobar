@@ -133,16 +133,23 @@ document.getElementById("btn-validar-codigo").addEventListener("click", async ()
     const idsRolesAsignados = (qRolesAsignados.features || []).map(f => `'${f.attributes.RolID}'`).join(",");
     
     let rolesFuncionalesTextos = [];
+    let rolesNombresVisuales = [];
+    
     if(idsRolesAsignados) {
         const qDefRoles = await fetchJson(`${URL_SEG_ROL}/query`, { f:"json", where:`RolID IN (${idsRolesAsignados})`, outFields:"RolID,NombreRol" });
-        rolesFuncionalesTextos = (qDefRoles.features || []).map(f => {
+        (qDefRoles.features || []).forEach(f => {
             dictRoles.set(f.attributes.RolID, f.attributes.NombreRol);
-            return String(f.attributes.NombreRol).trim().toUpperCase();
+            rolesFuncionalesTextos.push(String(f.attributes.RolID).trim().toUpperCase());
+            rolesNombresVisuales.push(String(f.attributes.NombreRol).trim());
         });
     }
     
     if(rolesFuncionalesTextos.length === 0 && qRolesAsignados.features.length > 0) {
-        rolesFuncionalesTextos = (qRolesAsignados.features || []).map(f => String(f.attributes.RolID).trim().toUpperCase());
+        (qRolesAsignados.features || []).forEach(f => {
+            const r = String(f.attributes.RolID).trim().toUpperCase();
+            rolesFuncionalesTextos.push(r);
+            rolesNombresVisuales.push(r);
+        });
     }
 
     const validRoles = rolesFuncionalesTextos.filter(r => ["APROBADOR", "PUBLICADOR", "SUPERADMIN"].includes(r));
@@ -160,7 +167,7 @@ document.getElementById("btn-validar-codigo").addEventListener("click", async ()
     document.getElementById("login-overlay").style.display = "none";
     document.getElementById("pill-user").style.display = "block"; document.getElementById("pill-roles").style.display = "block";
     document.getElementById("pill-user").textContent = `Usuario: ${currentUser.nombre}`;
-    document.getElementById("pill-roles").textContent = `Roles: ${validRoles.join(", ")}`;
+    document.getElementById("pill-roles").textContent = `Roles: ${rolesNombresVisuales.join(", ")}`;
     
     await preCargarFiltrosBase();
     await loadInbox();
